@@ -1,0 +1,54 @@
+name: Full CI/CD Pipeline
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          cd server && npm install
+          cd ../client && npm install
+
+      - name: Run Build Check
+        run: |
+          cd client && npm run build
+
+  docker-build:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Images
+        run: |
+          docker build -t my-app-backend:latest ./server
+          docker build -t my-app-frontend:latest ./client
+          
+      - name: Docker Login & Push
+        run: |
+         echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USER }}" --password-stdin
+         docker push my-app-backend:latest
+         docker push my-app-frontend:latest
+
+  deploy:
+    needs: docker-build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Server via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/projects/test-app
+            git pull origin main
+            chmod +x deploy.sh
+            ./deploy.sh
