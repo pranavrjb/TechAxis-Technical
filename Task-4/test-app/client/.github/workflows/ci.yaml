@@ -1,0 +1,33 @@
+name: Project CI
+on:
+  push:
+    branches: [ main ]
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Test Backend
+        run: |
+          cd server
+          npm install
+
+      - name: Test Frontend
+        run: |
+          cd client
+          npm install
+          npm run build
+
+      - name: Build Docker Images
+        run: |
+          docker build -t my-app-backend ./server
+          docker build -t my-app-frontend ./client
+
+      - name: Verify Build
+        run: docker images
